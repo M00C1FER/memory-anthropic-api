@@ -23,7 +23,7 @@
 ## Quick start
 
 ```bash
-pip install memory-anthropic-api
+pip install git+https://github.com/M00C1FER/memory-anthropic-api.git   # PyPI release pending
 
 # Run conformance against the built-in reference
 memory-conformance
