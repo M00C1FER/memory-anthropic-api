@@ -16,6 +16,8 @@ def main() -> int:
     parser.add_argument("--root", default="/tmp/memory-conformance",
                         help="root dir for default FilesystemMemory")
     parser.add_argument("--name", default=None, help="server name for the report")
+    parser.add_argument("--force", action="store_true",
+                        help="skip confirmation when --root will be wiped")
     args = parser.parse_args()
 
     if args.target:
@@ -28,7 +30,23 @@ def main() -> int:
         impl = factory()
         name = args.name or args.target
     else:
+        import os
         import shutil
+        # Confirm before wiping a non-empty --root unless --force or running non-interactively.
+        if os.path.isdir(args.root) and any(os.scandir(args.root)):
+            if not args.force and sys.stdin.isatty():
+                print(f"--root {args.root!r} is non-empty and will be wiped.", file=sys.stderr)
+                ans = input("Proceed? [y/N]: ").strip().lower()
+                if ans not in ("y", "yes"):
+                    print("aborted.", file=sys.stderr)
+                    return 2
+            elif not args.force:
+                print(
+                    f"refusing to wipe non-empty --root {args.root!r} non-interactively; "
+                    "pass --force to override",
+                    file=sys.stderr,
+                )
+                return 2
         shutil.rmtree(args.root, ignore_errors=True)
         impl = FilesystemMemory(args.root)
         name = args.name or "FilesystemMemory (built-in reference)"
