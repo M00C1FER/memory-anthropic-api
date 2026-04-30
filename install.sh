@@ -15,19 +15,24 @@ detect_os() { OS_ID=unknown; OS_LIKE=""; OS_VERSION=""; OS_WSL=0; [ -f /etc/os-r
 pkg_install() {
     # Caller is responsible for prompting the user (see ensure_python). This
     # function prints the exact command before running so the user can audit
-    # / abort with Ctrl-C.
-    local cmd
+    # / abort with Ctrl-C. Uses an array (not eval) to avoid shell-injection
+    # surface if a future caller passes user-influenced package names.
+    local -a cmd
     case "$OS_ID" in
-        debian|ubuntu)      cmd="sudo apt-get update -qq && sudo apt-get install -y $*";;
-        fedora|rhel|centos) cmd="sudo dnf install -y $*";;
-        arch|manjaro)       cmd="sudo pacman -S --noconfirm $*";;
-        alpine)             cmd="sudo apk add --no-cache $*";;
-        opensuse*|sles)     cmd="sudo zypper install -y $*";;
-        macos)              cmd="brew install $*";;
+        debian|ubuntu)
+            info "running: sudo apt-get update -qq && sudo apt-get install -y $*"
+            sudo apt-get update -qq && sudo apt-get install -y "$@"
+            return $?
+            ;;
+        fedora|rhel|centos) cmd=(sudo dnf install -y "$@");;
+        arch|manjaro)       cmd=(sudo pacman -S --noconfirm "$@");;
+        alpine)             cmd=(sudo apk add --no-cache "$@");;
+        opensuse*|sles)     cmd=(sudo zypper install -y "$@");;
+        macos)              cmd=(brew install "$@");;
         *) warn "unknown OS — install manually: $*"; return 1;;
     esac
-    info "running: $cmd"
-    eval "$cmd"
+    info "running: ${cmd[*]}"
+    "${cmd[@]}"
 }
 ensure_python() {
     command -v python3 >/dev/null && {
