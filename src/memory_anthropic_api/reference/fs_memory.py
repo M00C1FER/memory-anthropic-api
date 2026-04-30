@@ -42,13 +42,25 @@ class FilesystemMemory:
         if target.is_dir():
             entries = sorted(target.iterdir())
             return "\n".join(p.name + ("/" if p.is_dir() else "") for p in entries)
-        text = target.read_text(encoding="utf-8")
         if view_range:
-            lines = text.splitlines()
-            start = max(1, view_range[0]) - 1
-            end = view_range[1] if len(view_range) >= 2 and view_range[1] >= 0 else len(lines)
-            return "\n".join(lines[start:end])
-        return text
+            # 1-indexed; "[5, 2]" is invalid (end < start).
+            start = max(1, view_range[0])
+            end = view_range[1] if len(view_range) >= 2 and view_range[1] >= 0 else None
+            if end is not None and end < start:
+                raise ValueError(
+                    f"view_range end ({end}) < start ({start}); inverted range"
+                )
+            # Stream the file line-by-line so we don't OOM on large files.
+            collected: List[str] = []
+            with target.open(encoding="utf-8") as f:
+                for lineno, line in enumerate(f, start=1):
+                    if lineno < start:
+                        continue
+                    if end is not None and lineno > end:
+                        break
+                    collected.append(line.rstrip("\n"))
+            return "\n".join(collected)
+        return target.read_text(encoding="utf-8")
 
     def create(self, path: str, file_text: str) -> Dict[str, Any]:
         target = self._resolve(path)

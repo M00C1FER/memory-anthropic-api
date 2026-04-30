@@ -13,15 +13,21 @@ prompt_default() { read -r -p "  $1 [$2]: " ans; echo "${ans:-$2}"; }
 
 detect_os() { OS_ID=unknown; OS_LIKE=""; OS_VERSION=""; OS_WSL=0; [ -f /etc/os-release ] && { . /etc/os-release; OS_ID="${ID:-}"; OS_LIKE="${ID_LIKE:-}"; OS_VERSION="${VERSION_ID:-}"; }; [ "$(uname)" = "Darwin" ] && OS_ID=macos; grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null && OS_WSL=1 || true; }
 pkg_install() {
+    # Caller is responsible for prompting the user (see ensure_python). This
+    # function prints the exact command before running so the user can audit
+    # / abort with Ctrl-C.
+    local cmd
     case "$OS_ID" in
-        debian|ubuntu) sudo apt-get update -qq && sudo apt-get install -y "$@";;
-        fedora|rhel|centos) sudo dnf install -y "$@";;
-        arch|manjaro) sudo pacman -S --noconfirm "$@";;
-        alpine) sudo apk add --no-cache "$@";;
-        opensuse*|sles) sudo zypper install -y "$@";;
-        macos) brew install "$@";;
+        debian|ubuntu)      cmd="sudo apt-get update -qq && sudo apt-get install -y $*";;
+        fedora|rhel|centos) cmd="sudo dnf install -y $*";;
+        arch|manjaro)       cmd="sudo pacman -S --noconfirm $*";;
+        alpine)             cmd="sudo apk add --no-cache $*";;
+        opensuse*|sles)     cmd="sudo zypper install -y $*";;
+        macos)              cmd="brew install $*";;
         *) warn "unknown OS — install manually: $*"; return 1;;
     esac
+    info "running: $cmd"
+    eval "$cmd"
 }
 ensure_python() {
     command -v python3 >/dev/null && {

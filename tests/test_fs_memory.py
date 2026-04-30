@@ -67,6 +67,32 @@ def test_view_range(mem):
     assert mem.view("/memories/a.md", view_range=[2, 4]) == "2\n3\n4"
 
 
+def test_view_range_inverted_raises(mem):
+    """[5, 2] is logically invalid — must raise, not silently return empty."""
+    mem.create("/memories/a.md", "1\n2\n3\n4\n5")
+    with pytest.raises(ValueError):
+        mem.view("/memories/a.md", view_range=[5, 2])
+
+
+def test_view_range_streams_large_file(mem, monkeypatch):
+    """view_range path must NOT call read_text on the full file (OOM defense)."""
+    from pathlib import Path
+    mem.create("/memories/big.md", "\n".join(str(i) for i in range(1, 1001)))
+    original_read_text = Path.read_text
+
+    def reject_read_text(self, *args, **kwargs):
+        raise AssertionError(
+            f"view_range must stream, but read_text({self}) was called"
+        )
+
+    monkeypatch.setattr(Path, "read_text", reject_read_text)
+    try:
+        out = mem.view("/memories/big.md", view_range=[10, 12])
+    finally:
+        monkeypatch.setattr(Path, "read_text", original_read_text)
+    assert out == "10\n11\n12"
+
+
 def test_conformance_suite_passes_reference(mem):
     """The reference implementation must pass 6/6 of its own conformance suite."""
     report = run_conformance(mem, server_name="FilesystemMemory")
