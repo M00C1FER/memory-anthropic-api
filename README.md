@@ -1,8 +1,16 @@
 # memory-anthropic-api
 
-> **Conformance test suite + reference implementation** for the [Anthropic Memory Tool API](https://platform.claude.com/docs/en/build-with-claude/context-editing) 6-op contract. Run the suite against any candidate memory MCP server and get a 6/6 leaderboard score.
+> **The conformance harness the [Anthropic Memory Tool API](https://platform.claude.com/docs/en/build-with-claude/context-editing) needs.** 33+ memory MCP servers exist in the wild; **zero** publish a conformance suite they pass. This is the test infrastructure other server authors can use to validate spec compliance — plus a filesystem-backed reference implementation that passes 6/6.
+>
+> Plug-in compatible: bring any memory implementation (filesystem, SQLite, vector DB, Obsidian vault, distributed KV) — if it satisfies the 6-op contract (`view` / `create` / `str_replace` / `insert` / `delete` / `rename`), the suite scores it.
 
 [![CI](https://github.com/M00C1FER/memory-anthropic-api/actions/workflows/ci.yml/badge.svg)](https://github.com/M00C1FER/memory-anthropic-api/actions)
+![Python](https://img.shields.io/badge/python-3.10+-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+## Why this niche is empty
+
+The Anthropic Memory Tool spec is at [platform.claude.com/docs/en/build-with-claude/context-editing](https://platform.claude.com/docs/en/build-with-claude/context-editing); the [memory cookbook](https://github.com/anthropics/claude-cookbooks/blob/main/tool_use/memory_cookbook.ipynb) is a tutorial; neither is a *test harness*. Awesome-claude-skills indexes 33+ memory MCP servers (mcp-memory-service, mem0, letta-style adapters, etc.) — none of them ship a conformance check against the published spec. This project fills that gap, becoming the CI dependency every memory-server author can wire in to display a "passes 6/6" badge.
 
 ## What it does
 
