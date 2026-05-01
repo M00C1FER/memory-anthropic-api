@@ -1,29 +1,47 @@
-"""CLI: `memory-conformance --target <python.module:Class>` runs the suite against any impl."""
+"""CLI: ``memory-conformance [--target module:Callable]`` runs the conformance suite."""
 from __future__ import annotations
 
 import argparse
 import importlib
 import sys
+from pathlib import Path
 
 from .conformance import run_conformance
 from .reference import FilesystemMemory
 
+_DEFAULT_ROOT = str(Path.home() / ".cache" / "memory-conformance")
+
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Anthropic Memory Tool API conformance runner")
-    parser.add_argument("--target", help="module:Callable returning a memory implementation. "
-                                          "Default: built-in FilesystemMemory(/tmp/mem).")
-    parser.add_argument("--root", default="/tmp/memory-conformance",
-                        help="root dir for default FilesystemMemory")
-    parser.add_argument("--name", default=None, help="server name for the report")
-    parser.add_argument("--force", action="store_true",
-                        help="skip confirmation when --root will be wiped")
+    parser = argparse.ArgumentParser(
+        description="Anthropic Memory Tool API conformance runner"
+    )
+    parser.add_argument(
+        "--target",
+        help="module:Callable that returns a MemoryContract implementation. "
+             "Default: built-in FilesystemMemory.",
+    )
+    parser.add_argument(
+        "--root",
+        default=_DEFAULT_ROOT,
+        help="Root directory for the default FilesystemMemory "
+             "(default: ~/.cache/memory-conformance).",
+    )
+    parser.add_argument("--name", default=None, help="Server name shown in the report.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Skip confirmation when --root will be wiped.",
+    )
     args = parser.parse_args()
 
     if args.target:
         mod_name, _, attr = args.target.partition(":")
         if not attr:
-            print(f"--target must be module:Callable, got {args.target!r}", file=sys.stderr)
+            print(
+                f"--target must be module:Callable, got {args.target!r}",
+                file=sys.stderr,
+            )
             return 2
         mod = importlib.import_module(mod_name)
         factory = getattr(mod, attr)
@@ -32,10 +50,14 @@ def main() -> int:
     else:
         import os
         import shutil
-        # Confirm before wiping a non-empty --root unless --force or running non-interactively.
+
+        # Confirm before wiping a non-empty --root unless --force or non-interactive.
         if os.path.isdir(args.root) and any(os.scandir(args.root)):
             if not args.force and sys.stdin.isatty():
-                print(f"--root {args.root!r} is non-empty and will be wiped.", file=sys.stderr)
+                print(
+                    f"--root {args.root!r} is non-empty and will be wiped.",
+                    file=sys.stderr,
+                )
                 ans = input("Proceed? [y/N]: ").strip().lower()
                 if ans not in ("y", "yes"):
                     print("aborted.", file=sys.stderr)
