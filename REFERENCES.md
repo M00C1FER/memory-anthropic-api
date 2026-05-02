@@ -77,3 +77,27 @@ faster, never touch the real disk, and are trivially hermetic.
 > overhead.  The key insight: `pyfakefs` intercepts `Path.resolve()` too, so
 > path-traversal guard tests work correctly in the fake FS — used in the new
 > `tests/test_pyfakefs.py` module.
+
+---
+
+## 6. Cross-platform pattern — conditional `fcntl` / platform-neutral locking
+
+Several mature Python CLI/server projects (e.g. `pip`, `poetry`, `lockfile`)
+use a **try/except ImportError** guard around `fcntl` to degrade gracefully on
+Windows:
+
+```python
+try:
+    import fcntl as _fcntl
+    def _flock(f, op): _fcntl.flock(f, op)
+    _LOCK_EX = _fcntl.LOCK_EX
+except ImportError:          # Windows
+    def _flock(f, op): pass  # no-op; Windows uses mandatory OS locks
+    _LOCK_EX = 0
+```
+
+> **Pattern borrowed:** Added to `fs_memory.py` so the reference
+> implementation imports cleanly on Windows without sacrificing POSIX
+> advisory locking where available.  Documented in README § Platform support
+> with an explicit "Windows: safe for single-process use" caveat.
+

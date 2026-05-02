@@ -6,12 +6,38 @@ example, or as the actual memory backend if filesystem persistence is fine.
 """
 from __future__ import annotations
 
-import fcntl
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
+
+# fcntl is POSIX-only (Linux, macOS, WSL).  On Windows it is absent.
+# Decision: Windows is supported at the path/API level; file-locking degrades
+# to a no-op because Windows has its own mandatory-locking semantics and the
+# tool is primarily used from a single process.  See README § Platform support.
+try:
+    import fcntl as _fcntl
+
+    def _flock(fileobj: object, op: int) -> None:
+        """Acquire/release a POSIX advisory lock on *fileobj*.
+
+        The lock operation (e.g. exclusive acquire, release) is determined
+        by *op* (e.g. ``_LOCK_EX``, ``fcntl.LOCK_UN``).
+        """
+        _fcntl.flock(fileobj, op)  # type: ignore[arg-type]
+
+    _LOCK_EX: int = _fcntl.LOCK_EX
+
+except ImportError:  # Windows
+    def _flock(fileobj: object, op: int) -> None:  # noqa: ARG001
+        """No-op: Windows does not support fcntl; locking is skipped.
+
+        Safe for single-process use; concurrent multi-process writes on
+        Windows are not guaranteed to be safe (see README § Platform support).
+        """
+
+    _LOCK_EX: int = 0  # type: ignore[misc]
 
 
 class FilesystemMemory:
@@ -110,6 +136,7 @@ class FilesystemMemory:
         # (Path.read_text(newline=) was only added in Python 3.13.)
         with target.open(encoding="utf-8", newline="") as f:
             return f.read()
+
     def create(self, path: str, file_text: str) -> dict[str, Any]:
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -126,7 +153,7 @@ class FilesystemMemory:
         # Hold an exclusive lock for the full read-modify-write cycle.
         # newline="" preserves \r verbatim; no universal-newlines mangling.
         with target.open("r+", encoding="utf-8", newline="") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
+            _flock(f, _LOCK_EX)
             text = f.read()
             if old_str not in text:
                 raise ValueError(f"old_str not found in {path}")
@@ -146,7 +173,7 @@ class FilesystemMemory:
         # Hold an exclusive lock for the full read-modify-write cycle.
         # newline="" preserves \r verbatim; no universal-newlines mangling.
         with target.open("r+", encoding="utf-8", newline="") as f:
-            fcntl.flock(f, fcntl.LOCK_EX)
+            _flock(f, _LOCK_EX)
             original = f.read()
             # Preserve trailing newline — splitlines() silently discards it.
             had_trailing_newline = original.endswith("\n")
