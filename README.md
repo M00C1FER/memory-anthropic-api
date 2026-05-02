@@ -120,15 +120,67 @@ Claude Desktop config:
 ## Testing
 
 ```bash
-pip install -e .[dev]
+pip install -e .[dev,mcp]
 pytest
 ```
 
-64 tests cover all 6 ops across three test modules:
+75 tests cover all 6 ops across four test modules:
 
 - **`test_fs_memory.py`** (37 tests) — core happy-path, edge cases, path-traversal guard (including symlink escapes), view-range validation, atomic write crash semantics, conformance suite.
 - **`test_pyfakefs.py`** (18 tests) — same scenarios run against a fully in-memory fake filesystem (no real disk I/O); faster and hermetically isolated.
 - **`test_property.py`** (9 tests) — Hypothesis property-based tests that explore arbitrary inputs for all 6 ops, checking invariants hold for every generated example.
+- **`test_server.py`** (11 tests) — FastMCP server layer tests using the in-process `fastmcp.client.Client` + `FastMCPTransport` (requires `[mcp]` extra).
+
+## Platform support
+
+The package is pure Python and requires **Python 3.10+**.  It runs on any
+platform Python supports.
+
+| Platform | Status | Notes |
+|---|:-:|---|
+| Linux (Debian/Ubuntu/Arch/Fedora) | ✅ | Primary target; full test suite in CI |
+| macOS | ✅ | Tested in CI (macos-latest) |
+| Alpine (musl libc) | ✅ | Tested in CI via `python:3.12-alpine` container |
+| WSL2 (Ubuntu base) | ✅ | Identical to Linux; no systemd/proc assumptions |
+| **Termux** (Android, arm64) | ✅ | See [Termux](#termux) section below |
+| Windows (native) | ⚠️ | Path API works; `fcntl` file-locking is a no-op. Safe for single-process use. |
+
+### Windows file-locking decision
+
+`fcntl.flock` is POSIX-only and unavailable on Windows.  **The virtual-path
+API (`/memories/…`) and path-traversal guard work correctly on Windows** —
+all paths use forward slashes by contract.  File locking degrades to a no-op
+because Windows enforces mandatory-lock semantics at the OS level and the
+typical usage pattern is single-process.  Concurrent multi-process writes on
+Windows are not guaranteed to be safe; if you need cross-process safety on
+Windows, wrap `FilesystemMemory` with a threading lock.
+
+## Termux
+
+`pkg install python` is the only prerequisite.
+
+```bash
+# One-shot install on Termux
+pkg install python git
+pip install git+https://github.com/M00C1FER/memory-tool-conformance.git
+
+# Smoke-test
+memory-conformance --force
+# → 10/10 ops pass (100%)
+```
+
+Or, to install from a local clone:
+
+```bash
+bash scripts/install-termux.sh   # installs dev extras + runs smoke test
+```
+
+**Notes for Termux:**
+- `fcntl.flock` is available (Android/Bionic provides it); file-locking works normally.
+- No `/etc/passwd`, systemd, or other Linux-specific assumptions in the code.
+- The `mcp` optional extra (`fastmcp`) requires compiled wheels; install may
+  take longer or require a build environment on older devices.  Core
+  conformance harness and reference implementation work without it.
 
 ## License
 
