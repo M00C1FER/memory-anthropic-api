@@ -9,7 +9,7 @@ from pathlib import Path
 from .conformance import run_conformance
 from .reference import FilesystemMemory
 
-_DEFAULT_ROOT = str(Path.home() / ".cache" / "memory-conformance")
+_DEFAULT_ROOT = str(Path.home() / ".memory-api")
 
 
 def main() -> int:
@@ -25,7 +25,7 @@ def main() -> int:
         "--root",
         default=_DEFAULT_ROOT,
         help="Root directory for the default FilesystemMemory "
-             "(default: ~/.cache/memory-conformance).",
+             "(default: ~/.memory-api).",
     )
     parser.add_argument("--name", default=None, help="Server name shown in the report.")
     parser.add_argument(
