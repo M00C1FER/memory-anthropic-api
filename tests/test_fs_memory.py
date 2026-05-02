@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from memory_anthropic_api import FilesystemMemory
-from memory_anthropic_api.conformance import run_conformance
+from memory_tool_conformance import FilesystemMemory
+from memory_tool_conformance.conformance import run_conformance
 
 
 @pytest.fixture

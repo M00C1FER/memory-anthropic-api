@@ -1,4 +1,4 @@
-"""memory-anthropic-api: conformance suite + reference implementation for the Anthropic Memory Tool API."""
+"""memory-tool-conformance: conformance suite + filesystem reference implementation for the LLM memory tool 6-op contract."""
 from .conformance.contract import MemoryContract, ConformanceResult, ConformanceReport
 from .reference.fs_memory import FilesystemMemory
 
