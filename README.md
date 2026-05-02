@@ -14,15 +14,18 @@ The memory tool API spec is published at [platform.claude.com/docs/en/build-with
 
 ## What it does
 
-- **Conformance harness** — runs the 7-op contract against any candidate implementation, returns a pass/fail report:
+- **Conformance harness** — runs the 10-scenario contract against any candidate implementation, returns a pass/fail report:
   - `op:create+view`
   - `op:create-overwrite`
   - `op:str_replace`
   - `op:insert` (after-line semantics)
+  - `op:insert-head` (line=0 head-insert)
+  - `op:insert-append` (line>EOF appends)
   - `op:rename`
+  - `op:rename-cross-dir` (cross-directory, auto-creates parents)
   - `op:delete`
   - `op:view-directory`
-- **Reference implementation** — `FilesystemMemory`, a path-based filesystem-backed server that passes 7/7. Use it directly, or as the canonical "how it should behave" baseline.
+- **Reference implementation** — `FilesystemMemory`, a path-based filesystem-backed server that passes 10/10. Use it directly, or as the canonical "how it should behave" baseline.
 - **CLI** — `memory-conformance --target your_module:factory` runs the suite against any installed implementation.
 
 ## Why this niche
@@ -36,7 +39,7 @@ pip install git+https://github.com/M00C1FER/memory-tool-conformance.git   # PyPI
 
 # Run conformance against the built-in reference
 memory-conformance
-# → 7/7 ops pass (100%)
+# → 10/10 ops pass (100%)
 
 # Run against your own implementation
 memory-conformance --target my_pkg.memory:make_server --name "my-server"
@@ -76,7 +79,7 @@ The "reference + conformance suite" pattern doesn't yet exist in the MCP memory 
 |---|:-:|:-:|:-:|:-:|
 | `mcp-memory-service` | ❌ | ✅ | varies | partial |
 | 33+ other memory servers | ❌ | own impl | varies | varies |
-| **memory-tool-conformance** | **✅** | **✅** | **✅** | **✅ 7/7** |
+| **memory-tool-conformance** | **✅** | **✅** | **✅** | **✅ 10/10** |
 
 ## Adding your server to the leaderboard
 
@@ -95,7 +98,7 @@ pip install -e .[dev]
 pytest
 ```
 
-30 tests cover all 6 ops + path-traversal guard + view-range validation + atomic write semantics + insert_line validation + the conformance suite running against the reference impl.
+37 tests cover all 6 ops + path-traversal guard (including symlink escapes) + view-range validation + atomic write crash semantics + insert_line=0 head-insert + insert_line>EOF append + the conformance suite running against the reference impl.
 
 ## License
 

@@ -144,6 +144,20 @@ def test_insert_no_trailing_newline_not_added(mem):
     assert mem.view("/memories/a.md") == "line1\nline1b\nline2"
 
 
+def test_insert_line_zero_head_insert(mem):
+    """insert_line=0 inserts before the first line (head-insert)."""
+    mem.create("/memories/a.md", "b\nc")
+    mem.insert("/memories/a.md", 0, "a")
+    assert mem.view("/memories/a.md") == "a\nb\nc"
+
+
+def test_insert_beyond_eof_appends(mem):
+    """insert_line beyond file length appends to the end."""
+    mem.create("/memories/a.md", "line1\nline2")
+    mem.insert("/memories/a.md", 999, "appended")
+    assert mem.view("/memories/a.md") == "line1\nline2\nappended"
+
+
 # ── rename edge cases ────────────────────────────────────────────────────────
 
 def test_rename_destination_exists_raises(mem):
@@ -163,6 +177,15 @@ def test_rename_directory(mem):
         mem.view("/memories/srcdir/file.md")
 
 
+def test_rename_cross_directory_creates_parents(mem):
+    """rename auto-creates parent directories of the destination."""
+    mem.create("/memories/src.md", "content")
+    mem.rename("/memories/src.md", "/memories/newdir/sub/dst.md")
+    assert mem.view("/memories/newdir/sub/dst.md") == "content"
+    with pytest.raises(FileNotFoundError):
+        mem.view("/memories/src.md")
+
+
 # ── delete edge cases ────────────────────────────────────────────────────────
 
 def test_delete_directory(mem):
@@ -172,6 +195,12 @@ def test_delete_directory(mem):
     mem.delete("/memories/d")
     with pytest.raises(FileNotFoundError):
         mem.view("/memories/d")
+
+
+def test_delete_missing_raises(mem):
+    """delete raises FileNotFoundError for a path that does not exist."""
+    with pytest.raises(FileNotFoundError):
+        mem.delete("/memories/nonexistent.md")
 
 
 # ── view edge cases ──────────────────────────────────────────────────────────
@@ -227,6 +256,12 @@ def test_view_range_zero_end_raises(mem):
         mem.view("/memories/a.md", view_range=[1, 0])
 
 
+def test_view_range_beyond_eof_returns_available_lines(mem):
+    """view_range [3, 100] on a 5-line file returns lines 3-5 without error."""
+    mem.create("/memories/a.md", "1\n2\n3\n4\n5")
+    assert mem.view("/memories/a.md", view_range=[3, 100]) == "3\n4\n5"
+
+
 # ── unicode ──────────────────────────────────────────────────────────────────
 
 def test_unicode_create_and_view(mem):
@@ -243,11 +278,50 @@ def test_unicode_str_replace(mem):
     assert mem.view("/memories/uni.md") == "guten tag wörld"
 
 
+# ── path traversal: symlink escape ───────────────────────────────────────────
+
+def test_path_traversal_symlink_escape_denied(mem):
+    """A symlink inside /memories pointing outside the root must be denied."""
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as truly_outside:
+        outside = Path(truly_outside)
+        (outside / "secret.md").write_text("top secret")
+        # Plant a symlink directly in the memory root that resolves outside root.
+        link_path = mem.root / "evil_link"
+        link_path.symlink_to(outside)
+        with pytest.raises(ValueError):
+            mem.view("/memories/evil_link/secret.md")
+
+
+# ── atomic write: crash simulation ───────────────────────────────────────────
+
+def test_atomic_write_no_partial_if_write_fails(mem, monkeypatch):
+    """If fsync raises mid-write the original file is untouched and no .tmp remains."""
+    import os
+
+    mem.create("/memories/a.md", "original content")
+
+    def exploding_fsync(_fd: int) -> None:
+        raise OSError("simulated disk full")
+
+    monkeypatch.setattr(os, "fsync", exploding_fsync)
+    with pytest.raises(OSError, match="simulated disk full"):
+        mem.str_replace("/memories/a.md", "original", "corrupted")
+
+    # Original file must be completely intact.
+    assert mem.view("/memories/a.md") == "original content"
+    # No stray .tmp files must remain.
+    tmp_files = list(mem.root.rglob("*.tmp"))
+    assert not tmp_files, f"stray temp files found: {tmp_files}"
+
+
 # ── conformance suite ────────────────────────────────────────────────────────
 
 def test_conformance_suite_passes_reference(mem):
-    """The reference implementation must pass 7/7 of its own conformance suite."""
+    """The reference implementation must pass 10/10 of its own conformance suite."""
     report = run_conformance(mem, server_name="FilesystemMemory")
     assert report.all_pass, f"\n{report.render()}"
-    assert report.passed == 7
+    assert report.passed == 10
     assert report.failed == 0
