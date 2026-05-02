@@ -7,6 +7,8 @@ jobs:
   # ── full test matrix: ubuntu-latest × all supported Python versions ─────────
   test:
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -38,6 +40,8 @@ jobs:
   # ── Alpine (musl libc) spot-check ───────────────────────────────────────────
   test-alpine:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     container: python:3.12-alpine
     steps:
       - name: Install git (required by actions/checkout in Alpine)

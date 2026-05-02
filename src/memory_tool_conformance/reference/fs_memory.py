@@ -20,14 +20,22 @@ try:
     import fcntl as _fcntl
 
     def _flock(fileobj: object, op: int) -> None:
-        """Acquire/release a POSIX advisory lock on *fileobj*."""
+        """Acquire/release a POSIX advisory lock on *fileobj*.
+
+        The lock operation (e.g. exclusive acquire, release) is determined
+        by *op* (e.g. ``_LOCK_EX``, ``fcntl.LOCK_UN``).
+        """
         _fcntl.flock(fileobj, op)  # type: ignore[arg-type]
 
     _LOCK_EX: int = _fcntl.LOCK_EX
 
 except ImportError:  # Windows
     def _flock(fileobj: object, op: int) -> None:  # noqa: ARG001
-        """No-op: Windows does not support fcntl; locking is skipped."""
+        """No-op: Windows does not support fcntl; locking is skipped.
+
+        Safe for single-process use; concurrent multi-process writes on
+        Windows are not guaranteed to be safe (see README § Platform support).
+        """
 
     _LOCK_EX: int = 0  # type: ignore[misc]
 
