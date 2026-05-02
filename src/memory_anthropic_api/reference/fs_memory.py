@@ -6,8 +6,10 @@ example, or as the actual memory backend if filesystem persistence is fine.
 """
 from __future__ import annotations
 
+import fcntl
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +25,12 @@ class FilesystemMemory:
 
     # ── path resolution (with traversal guard) ──────────────────────────────
 
-    def _resolve(self, virtual_path: str) -> Path:
+    def _resolve(self, virtual_path: str | Path) -> Path:
+        if not isinstance(virtual_path, (str, Path)):
+            raise TypeError(
+                f"virtual_path must be str or Path, got {type(virtual_path).__name__!r}"
+            )
+        virtual_path = str(virtual_path)
         if not virtual_path.startswith(self.MEMORIES_PREFIX):
             raise ValueError(
                 f"path must begin with {self.MEMORIES_PREFIX!r}, got {virtual_path!r}"
@@ -34,6 +41,25 @@ class FilesystemMemory:
         if not full.is_relative_to(self.root):
             raise ValueError(f"path traversal denied: {virtual_path!r}")
         return full
+
+    # ── atomic write helper ──────────────────────────────────────────────────
+
+    @staticmethod
+    def _atomic_write(target: Path, content: str) -> None:
+        """Write *content* to *target* atomically via a same-directory temp file."""
+        fd, tmp_name = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_name, target)
+        except Exception:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
     # ── 6-op contract ────────────────────────────────────────────────────────
 
@@ -89,29 +115,39 @@ class FilesystemMemory:
         target = self._resolve(path)
         if not target.is_file():
             raise FileNotFoundError(f"not a file: {path}")
-        text = target.read_text(encoding="utf-8")
-        if old_str not in text:
-            raise ValueError(f"old_str not found in {path}")
-        # Anthropic spec: replace FIRST occurrence only.
-        new_text = text.replace(old_str, new_str, 1)
-        target.write_text(new_text, encoding="utf-8")
+        # Hold an exclusive lock for the full read-modify-write cycle.
+        with target.open("r+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            text = f.read()
+            if old_str not in text:
+                raise ValueError(f"old_str not found in {path}")
+            # Anthropic spec: replace FIRST occurrence only.
+            new_text = text.replace(old_str, new_str, 1)
+            self._atomic_write(target, new_text)
         return {"ok": True, "path": path, "replacements": 1}
 
     def insert(self, path: str, insert_line: int, text: str) -> dict[str, Any]:
+        if insert_line < 1:
+            raise ValueError(
+                f"insert_line must be >= 1 (1-indexed); got {insert_line}"
+            )
         target = self._resolve(path)
         if not target.is_file():
             raise FileNotFoundError(f"not a file: {path}")
-        original = target.read_text(encoding="utf-8")
-        # Preserve trailing newline — splitlines() silently discards it.
-        had_trailing_newline = original.endswith("\n")
-        lines = original.splitlines()
-        # insert_line is 1-indexed; 0 means "before line 1" per Anthropic cookbook.
-        idx = max(0, min(insert_line, len(lines)))
-        lines.insert(idx, text)
-        result = "\n".join(lines)
-        if had_trailing_newline:
-            result += "\n"
-        target.write_text(result, encoding="utf-8")
+        # Hold an exclusive lock for the full read-modify-write cycle.
+        with target.open("r+", encoding="utf-8") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            original = f.read()
+            # Preserve trailing newline — splitlines() silently discards it.
+            had_trailing_newline = original.endswith("\n")
+            lines = original.splitlines()
+            # insert_line is 1-indexed; clamp to file length.
+            idx = min(insert_line, len(lines))
+            lines.insert(idx, text)
+            result = "\n".join(lines)
+            if had_trailing_newline:
+                result += "\n"
+            self._atomic_write(target, result)
         return {"ok": True, "path": path, "inserted_at_line": idx + 1}
 
     def delete(self, path: str) -> dict[str, Any]:
