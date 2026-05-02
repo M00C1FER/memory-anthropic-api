@@ -127,9 +127,9 @@ class FilesystemMemory:
         return {"ok": True, "path": path, "replacements": 1}
 
     def insert(self, path: str, insert_line: int, text: str) -> dict[str, Any]:
-        if insert_line < 1:
+        if insert_line < 0:
             raise ValueError(
-                f"insert_line must be >= 1 (1-indexed); got {insert_line}"
+                f"insert_line must be >= 0 (0=head-insert, ≥1 inserts after that line); got {insert_line}"
             )
         target = self._resolve(path)
         if not target.is_file():

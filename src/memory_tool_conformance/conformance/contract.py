@@ -172,9 +172,54 @@ def run_conformance(
                 )
             )
 
+        # 8. insert (head-insert via line=0)
+        try:
+            impl.create("/memories/test/headins.md", "b\nc")
+            impl.insert("/memories/test/headins.md", 0, "a")
+            out = impl.view("/memories/test/headins.md")
+            report.results.append(ConformanceResult(
+                name="op:insert-head",
+                passed="a\nb\nc" in out,
+                detail=f"view: {out!r}",
+            ))
+        except Exception as e:
+            report.results.append(
+                ConformanceResult("op:insert-head", False, f"raised {type(e).__name__}: {e}")
+            )
+
+        # 9. insert (beyond-EOF appends)
+        try:
+            impl.create("/memories/test/appendins.md", "x\ny")
+            impl.insert("/memories/test/appendins.md", 999, "z")
+            out = impl.view("/memories/test/appendins.md")
+            report.results.append(ConformanceResult(
+                name="op:insert-append",
+                passed="x\ny\nz" in out,
+                detail=f"view: {out!r}",
+            ))
+        except Exception as e:
+            report.results.append(
+                ConformanceResult("op:insert-append", False, f"raised {type(e).__name__}: {e}")
+            )
+
+        # 10. rename (cross-directory, auto-creates parents)
+        try:
+            impl.create("/memories/test/crosssrc.md", "cross")
+            impl.rename("/memories/test/crosssrc.md", "/memories/crossdir/sub/dst.md")
+            new_out = impl.view("/memories/crossdir/sub/dst.md")
+            report.results.append(ConformanceResult(
+                name="op:rename-cross-dir",
+                passed="cross" in new_out,
+                detail=f"view: {new_out!r}",
+            ))
+        except Exception as e:
+            report.results.append(
+                ConformanceResult("op:rename-cross-dir", False, f"raised {type(e).__name__}: {e}")
+            )
+
     finally:
         # Clean up all test artifacts regardless of test outcome.
-        for cleanup_path in ("/memories/test", "/memories/dir1"):
+        for cleanup_path in ("/memories/test", "/memories/dir1", "/memories/crossdir"):
             try:
                 impl.delete(cleanup_path)
             except Exception:
