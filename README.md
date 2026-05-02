@@ -1,6 +1,6 @@
 # memory-tool-conformance
 
-> **The conformance harness this niche is missing.** 33+ memory MCP servers exist; **zero** publish a conformance suite they pass against the [memory tool API spec](https://platform.claude.com/docs/en/build-with-claude/context-editing). This is the test infrastructure other server authors can wire into CI to validate spec compliance — plus a filesystem-backed reference implementation that passes 7/7.
+> **The conformance harness this niche is missing.** 33+ memory MCP servers exist; **zero** publish a conformance suite they pass against the [memory tool API spec](https://platform.claude.com/docs/en/build-with-claude/context-editing). This is the test infrastructure other server authors can wire into CI to validate spec compliance — plus a filesystem-backed reference implementation that passes 10/10.
 >
 > Plug-in compatible: bring any memory implementation (filesystem, SQLite, vector DB, Obsidian vault, distributed KV) — if it satisfies the 6-op contract (`view` / `create` / `str_replace` / `insert` / `delete` / `rename`), the suite scores it.
 
