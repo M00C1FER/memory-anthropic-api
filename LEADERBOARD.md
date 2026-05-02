@@ -3,7 +3,7 @@
 Scores are reported against the 10-scenario conformance suite
 (`memory_tool_conformance.conformance.run_conformance`).
 
-*Auto-updated by CI on every push to main.*  Last run: 2026-05-02 18:56 UTC.
+*Auto-updated by CI on every push to main.*  Last run: 2026-05-02 20:05 UTC.
 
 | Implementation | Score | Notes |
 |---|:-:|---|
