@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "memory-anthropic-api"
+name = "memory-tool-conformance"
 version = "0.1.0"
-description = "Conformance test suite + reference implementation for Anthropic Memory Tool API (6-op contract: view/create/str_replace/insert/delete/rename)."
+description = "Conformance test suite + filesystem reference implementation for the LLM memory tool 6-op contract (view/create/str_replace/insert/delete/rename)."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = []
-keywords = ["mcp", "memory", "anthropic", "claude", "context-editing", "conformance"]
+keywords = ["mcp", "memory", "llm", "context-editing", "conformance", "test-harness"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
@@ -25,7 +25,7 @@ dev = ["pytest>=8", "ruff>=0.6"]
 mcp = ["fastmcp>=2.0"]
 
 [project.scripts]
-memory-conformance = "memory_anthropic_api.cli:main"
+memory-conformance = "memory_tool_conformance.cli:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
