@@ -1,6 +1,6 @@
 # memory-tool-conformance
 
-> **The conformance harness this niche is missing.** 33+ memory MCP servers exist; **zero** publish a conformance suite they pass against the [memory tool API spec](https://platform.claude.com/docs/en/build-with-claude/context-editing). This is the test infrastructure other server authors can wire into CI to validate spec compliance — plus a filesystem-backed reference implementation that passes 7/7.
+> **The conformance harness this niche is missing.** 33+ memory MCP servers exist; **zero** publish a conformance suite they pass against the [memory tool API spec](https://platform.claude.com/docs/en/build-with-claude/context-editing). This is the test infrastructure other server authors can wire into CI to validate spec compliance — plus a filesystem-backed reference implementation that passes 10/10.
 >
 > Plug-in compatible: bring any memory implementation (filesystem, SQLite, vector DB, Obsidian vault, distributed KV) — if it satisfies the 6-op contract (`view` / `create` / `str_replace` / `insert` / `delete` / `rename`), the suite scores it.
 
@@ -91,6 +91,32 @@ The "reference + conformance suite" pattern doesn't yet exist in the MCP memory 
 2. Run: `memory-conformance --target mypkg.memory:make_server --name "my-server"`
 3. Open a PR adding your result to `LEADERBOARD.md`.
 
+## FastMCP server (optional)
+
+If you want to plug `FilesystemMemory` directly into Claude Desktop or any MCP client:
+
+```bash
+pip install -e .[mcp]
+python -m memory_tool_conformance.server            # stdio (default)
+python -m memory_tool_conformance.server --transport sse --port 8765
+```
+
+Set `MEMORY_ROOT` to choose where memories live (default: `~/.memory-api`).
+
+Claude Desktop config:
+
+```json
+{
+  "mcpServers": {
+    "memory": {
+      "command": "python",
+      "args": ["-m", "memory_tool_conformance.server"],
+      "env": { "MEMORY_ROOT": "~/.memory-api" }
+    }
+  }
+}
+```
+
 ## Testing
 
 ```bash
@@ -98,7 +124,11 @@ pip install -e .[dev]
 pytest
 ```
 
-37 tests cover all 6 ops + path-traversal guard (including symlink escapes) + view-range validation + atomic write crash semantics + insert_line=0 head-insert + insert_line>EOF append + the conformance suite running against the reference impl.
+64 tests cover all 6 ops across three test modules:
+
+- **`test_fs_memory.py`** (37 tests) — core happy-path, edge cases, path-traversal guard (including symlink escapes), view-range validation, atomic write crash semantics, conformance suite.
+- **`test_pyfakefs.py`** (18 tests) — same scenarios run against a fully in-memory fake filesystem (no real disk I/O); faster and hermetically isolated.
+- **`test_property.py`** (9 tests) — Hypothesis property-based tests that explore arbitrary inputs for all 6 ops, checking invariants hold for every generated example.
 
 ## License
 

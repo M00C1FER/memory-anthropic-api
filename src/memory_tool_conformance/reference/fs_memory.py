@@ -46,10 +46,14 @@ class FilesystemMemory:
 
     @staticmethod
     def _atomic_write(target: Path, content: str) -> None:
-        """Write *content* to *target* atomically via a same-directory temp file."""
+        """Write *content* to *target* atomically via a same-directory temp file.
+
+        ``newline=""`` disables universal-newlines translation so that ``\\r``
+        and ``\\r\\n`` characters are preserved verbatim (create→view roundtrip).
+        """
         fd, tmp_name = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
                 f.flush()
                 os.fsync(f.fileno())
@@ -91,22 +95,26 @@ class FilesystemMemory:
                         f"view_range end ({end}) < start ({start}); inverted range"
                     )
             # Stream line-by-line so we never OOM on large files.
+            # newline="" disables universal-newlines so \r is preserved.
             collected: list[str] = []
-            with target.open(encoding="utf-8") as f:
+            with target.open(encoding="utf-8", newline="") as f:
                 for lineno, line in enumerate(f, start=1):
                     if lineno < start:
                         continue
                     if end is not None and lineno > end:
                         break
-                    collected.append(line.rstrip("\n"))
+                    collected.append(line.rstrip("\r\n"))
             return "\n".join(collected)
 
-        return target.read_text(encoding="utf-8")
-
+        # Use open() with newline="" for Python 3.10–3.12 compatibility.
+        # (Path.read_text(newline=) was only added in Python 3.13.)
+        with target.open(encoding="utf-8", newline="") as f:
+            return f.read()
     def create(self, path: str, file_text: str) -> dict[str, Any]:
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(file_text, encoding="utf-8")
+        # newline="" preserves \r and \r\n verbatim (no universal-newlines mangling).
+        target.write_text(file_text, encoding="utf-8", newline="")
         return {"ok": True, "path": path, "bytes": len(file_text.encode("utf-8"))}
 
     def str_replace(self, path: str, old_str: str, new_str: str) -> dict[str, Any]:
@@ -116,7 +124,8 @@ class FilesystemMemory:
         if not target.is_file():
             raise FileNotFoundError(f"not a file: {path}")
         # Hold an exclusive lock for the full read-modify-write cycle.
-        with target.open("r+", encoding="utf-8") as f:
+        # newline="" preserves \r verbatim; no universal-newlines mangling.
+        with target.open("r+", encoding="utf-8", newline="") as f:
             fcntl.flock(f, fcntl.LOCK_EX)
             text = f.read()
             if old_str not in text:
@@ -135,7 +144,8 @@ class FilesystemMemory:
         if not target.is_file():
             raise FileNotFoundError(f"not a file: {path}")
         # Hold an exclusive lock for the full read-modify-write cycle.
-        with target.open("r+", encoding="utf-8") as f:
+        # newline="" preserves \r verbatim; no universal-newlines mangling.
+        with target.open("r+", encoding="utf-8", newline="") as f:
             fcntl.flock(f, fcntl.LOCK_EX)
             original = f.read()
             # Preserve trailing newline — splitlines() silently discards it.

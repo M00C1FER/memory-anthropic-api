@@ -21,7 +21,7 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "hypothesis>=6.100", "pyfakefs>=4.7"]
 mcp = ["fastmcp>=2.0"]
 
 [project.scripts]
@@ -37,3 +37,10 @@ where = ["src"]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v"
+
+[tool.hypothesis]
+# CI profile: derandomized, no deadline, print blobs for reproducibility.
+derandomize = true
+deadline = 0
+print_blob = true
+suppress_health_check = ["too_slow"]
