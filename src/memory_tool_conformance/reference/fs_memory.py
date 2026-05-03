@@ -140,8 +140,9 @@ class FilesystemMemory:
     def create(self, path: str, file_text: str) -> dict[str, Any]:
         target = self._resolve(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        # newline="" preserves \r and \r\n verbatim (no universal-newlines mangling).
-        target.write_text(file_text, encoding="utf-8", newline="")
+        # Use _atomic_write so that a crash mid-write leaves no partial file.
+        # (str_replace and insert already use _atomic_write for the same reason.)
+        self._atomic_write(target, file_text)
         return {"ok": True, "path": path, "bytes": len(file_text.encode("utf-8"))}
 
     def str_replace(self, path: str, old_str: str, new_str: str) -> dict[str, Any]:
