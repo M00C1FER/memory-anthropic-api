@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# memory-anthropic-api — interactive install wizard.
+# memory-tool-conformance — interactive install wizard.
 set -euo pipefail
 
 if [ -t 1 ]; then C_BOLD="$(tput bold)"; C_RESET="$(tput sgr0)"; C_GREEN="$(tput setaf 2)"; C_YELLOW="$(tput setaf 3)"; C_RED="$(tput setaf 1)"; else C_BOLD=""; C_RESET=""; C_GREEN=""; C_YELLOW=""; C_RED=""; fi
@@ -52,16 +52,16 @@ ensure_python() {
 }
 
 main() {
-    say "memory-anthropic-api — install wizard"
+    say "memory-tool-conformance — install wizard"
     detect_os
     info "OS: ${OS_ID}${OS_VERSION:+ $OS_VERSION}$([ "$OS_WSL" = 1 ] && echo ' (WSL2)')"
 
     say ""; say "Step 1/3: Python 3.10+"; ensure_python
 
     say ""; say "Step 2/3: Install"
-    local INSTALL_HOME; INSTALL_HOME="$(prompt_default "Install root" "$HOME/.local/share/memory-anthropic-api")"
+    local INSTALL_HOME; INSTALL_HOME="$(prompt_default "Install root" "$HOME/.local/share/memory-tool-conformance")"
     mkdir -p "$INSTALL_HOME"
-    if [ -d "$INSTALL_HOME/.git" ]; then ( cd "$INSTALL_HOME" && git pull -q ); else git clone -q https://github.com/M00C1FER/memory-anthropic-api.git "$INSTALL_HOME"; fi
+    if [ -d "$INSTALL_HOME/.git" ]; then ( cd "$INSTALL_HOME" && git pull -q ); else git clone -q https://github.com/M00C1FER/memory-tool-conformance.git "$INSTALL_HOME"; fi
     cd "$INSTALL_HOME"
     python3 -m venv .venv
     .venv/bin/pip install --quiet --upgrade pip
@@ -76,7 +76,7 @@ EOF
 
     say ""; say "Step 3/3: Verify (run conformance suite against bundled reference impl)"
     if "$BIN/memory-conformance" >/dev/null 2>&1; then
-        ok "reference implementation passes 6/6 conformance"
+        ok "reference implementation passes 10/10 conformance"
     else
         warn "verification command exited non-zero — see 'memory-conformance' output"
     fi

@@ -109,17 +109,19 @@ class FilesystemMemory:
             )
 
         if view_range:
-            start = view_range[0]
-            end = view_range[1] if len(view_range) >= 2 else None
+            if len(view_range) != 2:
+                raise ValueError(
+                    f"view_range must be [start, end] (exactly 2 elements); got {view_range!r}"
+                )
+            start, end = view_range[0], view_range[1]
             if start < 1:
                 raise ValueError(f"view_range start must be >= 1, got {start}")
-            if end is not None:
-                if end < 1:
-                    raise ValueError(f"view_range end must be >= 1, got {end}")
-                if end < start:
-                    raise ValueError(
-                        f"view_range end ({end}) < start ({start}); inverted range"
-                    )
+            if end < 1:
+                raise ValueError(f"view_range end must be >= 1, got {end}")
+            if end < start:
+                raise ValueError(
+                    f"view_range end ({end}) < start ({start}); inverted range"
+                )
             # Stream line-by-line so we never OOM on large files.
             # newline="" disables universal-newlines so \r is preserved.
             collected: list[str] = []
@@ -127,7 +129,7 @@ class FilesystemMemory:
                 for lineno, line in enumerate(f, start=1):
                     if lineno < start:
                         continue
-                    if end is not None and lineno > end:
+                    if lineno > end:
                         break
                     collected.append(line.rstrip("\r\n"))
             return "\n".join(collected)

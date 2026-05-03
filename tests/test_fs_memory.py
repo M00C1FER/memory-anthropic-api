@@ -262,6 +262,13 @@ def test_view_range_beyond_eof_returns_available_lines(mem):
     assert mem.view("/memories/a.md", view_range=[3, 100]) == "3\n4\n5"
 
 
+def test_view_range_single_element_raises(mem):
+    """view_range with a single element must raise ValueError (contract requires [start, end])."""
+    mem.create("/memories/a.md", "1\n2\n3\n4\n5")
+    with pytest.raises(ValueError, match="exactly 2 elements"):
+        mem.view("/memories/a.md", view_range=[2])
+
+
 # ── unicode ──────────────────────────────────────────────────────────────────
 
 def test_unicode_create_and_view(mem):
