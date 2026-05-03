@@ -35,6 +35,20 @@ def patched_server(tmp_path, monkeypatch):
     return _srv.mcp
 
 
+@pytest.fixture()
+def anyio_backend():
+    """Restrict this module to asyncio only.
+
+    FastMCP's in-process transport calls ``asyncio.create_task()`` inside
+    ``Client._connect()``, which requires a running asyncio event loop.
+    Under trio, Python's asyncio has no running loop, so that call raises
+    ``RuntimeError: no running event loop``.  Returning ``"asyncio"`` here
+    suppresses the trio parametrisation that anyio's pytest plugin would
+    otherwise generate for every async test in this module.
+    """
+    return "asyncio"
+
+
 # ── tool discovery ────────────────────────────────────────────────────────────
 
 
