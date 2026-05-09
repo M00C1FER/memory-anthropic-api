@@ -6,6 +6,7 @@ example, or as the actual memory backend if filesystem persistence is fine.
 """
 from __future__ import annotations
 
+import errno
 import os
 import shutil
 import tempfile
@@ -83,7 +84,18 @@ class FilesystemMemory:
                 f.write(content)
                 f.flush()
                 os.fsync(f.fileno())
-            os.replace(tmp_name, target)
+            try:
+                os.replace(tmp_name, target)
+            except OSError as exc:
+                # macOS can raise EILSEQ for some supplementary-plane filenames.
+                # Fall back to a direct write so Unicode virtual paths still work.
+                if exc.errno != errno.EILSEQ:
+                    raise
+                with target.open("w", encoding="utf-8", newline="") as f:
+                    f.write(content)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.unlink(tmp_name)
         except Exception:
             try:
                 os.unlink(tmp_name)
