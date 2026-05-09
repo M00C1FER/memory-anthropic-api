@@ -79,6 +79,7 @@ class FilesystemMemory:
         and ``\\r\\n`` characters are preserved verbatim (create→view roundtrip).
         """
         fd, tmp_name = tempfile.mkstemp(dir=target.parent, suffix=".tmp")
+        cleanup_tmp: str | None = tmp_name
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
                 f.write(content)
@@ -87,7 +88,8 @@ class FilesystemMemory:
             try:
                 os.replace(tmp_name, target)
             except OSError as exc:
-                # macOS can raise EILSEQ for some supplementary-plane filenames.
+                # macOS filesystem limitation: EILSEQ can occur for some
+                # supplementary-plane Unicode filenames.
                 # Fall back to a direct write so Unicode virtual paths still work.
                 if exc.errno != errno.EILSEQ:
                     raise
@@ -96,11 +98,13 @@ class FilesystemMemory:
                     f.flush()
                     os.fsync(f.fileno())
                 os.unlink(tmp_name)
+                cleanup_tmp = None
         except Exception:
-            try:
-                os.unlink(tmp_name)
-            except OSError:
-                pass
+            if cleanup_tmp:
+                try:
+                    os.unlink(cleanup_tmp)
+                except OSError:
+                    pass
             raise
 
     # ── 6-op contract ────────────────────────────────────────────────────────

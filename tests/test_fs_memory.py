@@ -324,20 +324,22 @@ def test_atomic_write_no_partial_if_write_fails(mem, monkeypatch):
     assert not tmp_files, f"stray temp files found: {tmp_files}"
 
 
-def test_atomic_write_falls_back_when_replace_hits_illegal_byte_sequence(mem, monkeypatch):
+def test_atomic_write_eilseq_fallback(mem, monkeypatch):
     """Fallback direct-write path is used when os.replace raises EILSEQ."""
     import errno
     import os
 
-    original_replace = os.replace
+    eilseq_triggered = {"seen": False}
 
     def fail_once(src, dst):
-        monkeypatch.setattr(os, "replace", original_replace)
+        eilseq_triggered["seen"] = True
         raise OSError(errno.EILSEQ, "Illegal byte sequence")
 
     monkeypatch.setattr(os, "replace", fail_once)
     mem.create("/memories/\U00018CD6", "content")
+    assert eilseq_triggered["seen"] is True
     assert mem.view("/memories/\U00018CD6") == "content"
+    assert not list(mem.root.rglob("*.tmp"))
 
 
 # ── conformance suite ────────────────────────────────────────────────────────
